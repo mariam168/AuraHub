@@ -1,0 +1,68 @@
+/* client/src/index.css */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html.dark {
+  color-scheme: dark;
+}
+
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&family=Poppins:wght@300;400;500;600;700&display=swap');
+
+body {
+  font-family: 'Poppins', 'IBM Plex Sans Arabic', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: #e0e0e0; 
+  border-radius: 10px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #a0a0a0; 
+  border-radius: 10px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #808080; 
+}
+
+html.dark .custom-scrollbar::-webkit-scrollbar-track {
+  background: #333; 
+}
+html.dark .custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #555; 
+}
+html.dark .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #777; 
+}
+
+input[type='number']::-webkit-inner-spin-button,
+input[type='number']::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.bg-pattern-light {
+  background-image: radial-gradient(circle at 1px 1px, #ffffff20 1px, transparent 0);
+  background-size: 20px 20px;
+  background-position: 0 0, 10px 10px;
+}
+
+.dark .bg-pattern-dark {
+  background-image: radial-gradient(circle at 1px 1px, #1a202c20 1px, transparent 0); 
+  background-size: 20px 20px;
+  background-position: 0 0, 10px 10px;
+}
+
+/* Custom classes for icon animations, linked to keyframes in tailwind.config.js */
+/* .group-hover:scale-110-rotation { transform: scale(1.1) rotate(6deg); } */ /* Removed, using bounce instead */
+
+.group-hover:scale-110-bounce {
+  transform: scale(1.1);
+  animation: bounce-icon 0.3s ease-in-out;
+}
