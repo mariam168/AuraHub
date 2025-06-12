@@ -4,7 +4,6 @@ import axios from 'axios';
 const API_URL = 'http://localhost:5000/api/auth';
 
 export const AuthContext = createContext(null);
-
 export const useAuth = () => useContext(AuthContext);
 
 export const AuthProvider = ({ children }) => {
@@ -23,16 +22,16 @@ export const AuthProvider = ({ children }) => {
             localStorage.removeItem('token');
         }
     }, []);
-
     const loadUser = useCallback(async () => {
-        if (localStorage.token) {
-            setAuthToken(localStorage.token);
+        const token = localStorage.getItem('token');
+        if (token) {
+            setAuthToken(token);
             try {
-                // <--- [تصحيح] المسار الصحيح هو /me وليس /user
-                const res = await axios.get(`${API_URL}/me`);
+                const res = await axios.get(`${API_URL}/user`);
                 setUser(res.data);
                 setIsAuthenticated(true);
             } catch (err) {
+                console.error("Failed to load user:", err.response?.data?.msg || err.message);
                 setAuthToken(null);
                 setIsAuthenticated(false);
             }
@@ -50,29 +49,29 @@ export const AuthProvider = ({ children }) => {
         try {
             const res = await axios.post(`${API_URL}/login`, { email, password });
             setAuthToken(res.data.token);
-            setUser(res.data.user);
-            setIsAuthenticated(true);
+            await loadUser(); 
         } catch (err) {
             setError(err.response?.data?.msg || 'Login failed');
             setAuthToken(null);
             setIsAuthenticated(false);
+            throw err;
         } finally {
             setLoading(false);
         }
     };
 
     const register = async (username, email, password) => {
-        setLoading(true);
+         setLoading(true);
         setError(null);
         try {
             const res = await axios.post(`${API_URL}/register`, { username, email, password });
             setAuthToken(res.data.token);
-            setUser(res.data.user);
-            setIsAuthenticated(true);
+            await loadUser();
         } catch (err) {
             setError(err.response?.data?.msg || 'Registration failed');
             setAuthToken(null);
             setIsAuthenticated(false);
+            throw err;
         } finally {
             setLoading(false);
         }
@@ -85,7 +84,7 @@ export const AuthProvider = ({ children }) => {
     };
 
     return (
-        <AuthContext.Provider value={{ user, token, isAuthenticated, loading, error, login, register, logout }}>
+        <AuthContext.Provider value={{ user, token, isAuthenticated, loading, error, login, register, logout, loadUser }}>
             {children}
         </AuthContext.Provider>
     );

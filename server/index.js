@@ -1,34 +1,20 @@
-require('dotenv').config();
 const express = require('express');
+const mongoose = require('mongoose');
 const cors = require('cors');
 const path = require('path');
-const connectDB = require('./config/db');
-
-// Connect to Database
-connectDB();
-
+require('dotenv').config();
 const app = express();
-
-// Init Middleware
 app.use(cors());
 app.use(express.json());
-
-// --- Define Routes ---
-// This is the most important part to check
-// It tells Express: "When a request comes to /api/auth, use the rules in authRoutes.js"
+app.use('/uploads', express.static(path.join(__dirname, '..', 'public/uploads')));
+mongoose.connect(process.env.MONGO_URI, {
+    useNewUrlParser: true,
+    useUnifiedTopology: true,
+}).then(() => console.log('MongoDB Connected...'))
+  .catch(err => console.log(err));
 app.use('/api/auth', require('./routes/authRoutes'));
 app.use('/api/content', require('./routes/contentRoutes'));
-// Add other routes if you have them, e.g., shareRoutes
-// app.use('/api/share', require('./routes/shareRoutes'));
-
-// Serve static files (like uploaded images/videos) from the 'public' directory
-app.use('/public', express.static(path.join(__dirname, 'public')));
-
-// Simple check to see if the server is running
-app.get('/', (req, res) => {
-    res.send('API is running...');
-});
+app.use('/api/share', require('./routes/shareRoutes'));
 
 const PORT = process.env.PORT || 5000;
-
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+app.listen(PORT, () => console.log(`Server started on port ${PORT}`));

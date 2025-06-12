@@ -1,18 +1,29 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import { useAuth } from '../context/AuthContext';
-import { Folder, FileText, Image as ImageIcon, Video, Music, Lock, PlusCircle, LogOut, Edit, Trash2, Home, ChevronRight, Loader2, Star, Search, RotateCcw, Trash } from 'lucide-react';
+import {
+    Folder, FileText, Image as ImageIcon, Video, Music, Lock, PlusCircle,
+    LogOut, Edit, Trash2, Home, ChevronRight, Loader2, Star, Search,
+    RotateCcw, Trash, Users, FolderSymlink, MoreVertical, StarOff, FileX, ShieldAlert, Eye, FileCode
+} from 'lucide-react';
 import AddItemModal from '../components/AddItemModal';
 import EditFolderModal from '../components/EditFolderModal';
 import EditMediaModal from '../components/EditMediaModal';
 import PasswordPromptModal from '../components/PasswordPromptModal';
+import ShareModal from '../components/ShareModal';
+import PreviewModal from '../components/PreviewModal';
 
 const API_URL = 'http://localhost:5000/api/content';
+const STATIC_URL = 'http://localhost:5000';
 
 const MediaManagerPage = () => {
     const { user, logout } = useAuth();
+
     const [content, setContent] = useState({ folders: [], media: [] });
-    const [allFolders, setAllFolders] = useState([]);
+    const [currentFolderData, setCurrentFolderData] = useState(null);
+    const [userRole, setUserRole] = useState('owner');
+    const [sidebarFolders, setSidebarFolders] = useState({ myFolders: [], sharedWithMe: [] });
+    const [allFoldersForMove, setAllFoldersForMove] = useState([]);
     const [currentFolderId, setCurrentFolderId] = useState('root');
     const [history, setHistory] = useState([{ _id: 'root', name: 'My Drive' }]);
     const [loading, setLoading] = useState(true);
@@ -21,38 +32,33 @@ const MediaManagerPage = () => {
     const [searchQuery, setSearchQuery] = useState('');
     const [activeFilter, setActiveFilter] = useState('all');
     const [viewMode, setViewMode] = useState('drive');
-
-    // ... (Modal states remain the same)
     const [isAddModalOpen, setAddModalOpen] = useState(false);
     const [isEditFolderModalOpen, setEditFolderModalOpen] = useState(false);
     const [isEditMediaModalOpen, setEditMediaModalOpen] = useState(false);
-    const [itemToEdit, setItemToEdit] = useState(null);
     const [isPasswordModalOpen, setPasswordModalOpen] = useState(false);
+    const [isShareModalOpen, setShareModalOpen] = useState(false);
+    const [isPreviewModalOpen, setPreviewModalOpen] = useState(false);
+    const [itemToEdit, setItemToEdit] = useState(null);
+    const [itemToPreview, setItemToPreview] = useState(null);
     const [folderToUnlock, setFolderToUnlock] = useState(null);
+    const [folderToShare, setFolderToShare] = useState(null);
+    const [contextMenu, setContextMenu] = useState(null);
 
-    // [الحل] تم تعريف دالة التحميل هنا باستخدام useCallback
-    // الاعتماديات هنا هي فقط ما تحتاجه الدالة لتكوين الطلب
-    const fetchContent = useCallback(async () => {
+    const fetchContent = useCallback(async (folderId, currentHistory) => {
         setLoading(true);
         setError('');
-        
-        // الحصول على كلمة المرور الحالية للمجلد من الـ state
-        const password = verifiedPasswords[currentFolderId];
-
+        const password = verifiedPasswords[folderId];
         try {
-            const params = { password };
-            if (searchQuery) params.search = searchQuery;
-            if (activeFilter !== 'all') params.type = activeFilter;
-            if (viewMode === 'trash') params.view = 'trash';
-
-            const res = await axios.get(`${API_URL}/folders/${currentFolderId}`, { params });
-            setContent(res.data);
-            return res; 
+            const params = { password, view: viewMode, search: searchQuery, type: activeFilter };
+            const res = await axios.get(`${API_URL}/folders/${folderId}`, { params });
+            setContent({ folders: res.data.folders, media: res.data.media });
+            setUserRole(res.data.userRole || 'owner');
+            setCurrentFolderData(res.data.currentFolder);
         } catch (err) {
             const errorData = err.response?.data;
             if (errorData?.requiresPassword) {
-                const folderName = history.find(f => f._id === currentFolderId)?.name || 'Locked Folder';
-                setFolderToUnlock({ _id: currentFolderId, name: folderName });
+                const folderName = currentHistory.find(f => f._id === folderId)?.name || 'Locked Folder';
+                setFolderToUnlock({ _id: folderId, name: folderName });
                 setPasswordModalOpen(true);
             } else {
                 setError(errorData?.msg || 'Failed to load content');
@@ -61,56 +67,63 @@ const MediaManagerPage = () => {
         } finally {
             setLoading(false);
         }
-    }, [currentFolderId, verifiedPasswords, searchQuery, activeFilter, viewMode, history]); // `history` is needed for the folder name
+    }, [verifiedPasswords, searchQuery, activeFilter, viewMode]);
 
-    // [الحل] الـ useEffect الرئيسي أصبح بسيطًا جداً
-    // وظيفته فقط هي استدعاء دالة التحميل عندما تتغير مدخلات المستخدم
-    useEffect(() => {
-        const delayDebounceFn = setTimeout(() => {
-            fetchContent();
-        }, 300); // Debounce to prevent rapid firing while typing
-        return () => clearTimeout(delayDebounceFn);
-    }, [fetchContent]); // يعتمد فقط على الدالة نفسها
+    const fetchSidebarFolders = useCallback(async () => {
+        try {
+            const res = await axios.get(`${API_URL}/sidebar`);
+            setSidebarFolders(res.data);
+        } catch (error) { console.error("Failed to fetch sidebar folders:", error); }
+    }, []);
 
-    const fetchAllFolders = useCallback(async () => {
+    const fetchAllFoldersForMove = useCallback(async () => {
         try {
             const res = await axios.get(`${API_URL}/folders/nav`);
-            setAllFolders(res.data);
-        } catch (error) {
-            console.error("Failed to fetch all folders for navigation.");
-        }
+            setAllFoldersForMove(res.data);
+        } catch (error) { console.error("Failed to fetch folders for move dialog:", error); }
     }, []);
-    
-    useEffect(() => {
-        fetchAllFolders();
-    }, [fetchAllFolders]);
 
-    
-    const handleFolderClick = (folder) => {
-        if (viewMode === 'trash') return;
-        if (folder.hasPassword && !verifiedPasswords[folder._id]) {
-            setFolderToUnlock(folder);
-            setPasswordModalOpen(true);
-        } else {
-            setCurrentFolderId(folder._id);
-            setHistory(prev => [...prev, folder]);
-            setSearchQuery(''); 
-            setActiveFilter('all');
+    useEffect(() => {
+        const handler = (e) => { if (contextMenu) setContextMenu(null); };
+        window.addEventListener('click', handler);
+        return () => window.removeEventListener('click', handler);
+    }, [contextMenu]);
+
+    useEffect(() => {
+        const debounce = setTimeout(() => fetchContent(currentFolderId, history), 300);
+        return () => clearTimeout(debounce);
+    }, [currentFolderId, history, fetchContent]);
+
+    useEffect(() => { fetchSidebarFolders(); }, [fetchSidebarFolders]);
+
+    const refreshAll = useCallback(() => {
+        fetchContent(currentFolderId, history);
+        fetchSidebarFolders();
+    }, [currentFolderId, history, fetchContent, fetchSidebarFolders]);
+
+    const handleApiCall = async (apiCall) => {
+        try {
+            await apiCall();
+            refreshAll();
+            return true;
+        } catch (e) {
+            alert(e.response?.data?.msg || "An error occurred.");
+            return false;
         }
     };
-    
+
+    const handleFolderClick = (folder) => {
+        if (viewMode === 'trash') return;
+        setCurrentFolderId(folder._id);
+        setHistory(prev => [...prev, { _id: folder._id, name: folder.name }]);
+        setSearchQuery('');
+        setActiveFilter('all');
+    };
+
     const handleBreadcrumbClick = (folderId, index) => {
-        if(viewMode === 'trash') handleViewChange('drive');
+        if (viewMode === 'trash') handleViewChange('drive');
         setCurrentFolderId(folderId);
         setHistory(prev => prev.slice(0, index + 1));
-        const newVerified = {};
-        for (let i = 0; i <= index; i++) {
-            const id = history[i]._id;
-            if (verifiedPasswords[id]) {
-                newVerified[id] = verifiedPasswords[id];
-            }
-        }
-        setVerifiedPasswords(newVerified);
     };
 
     const handleViewChange = (newView) => {
@@ -123,180 +136,286 @@ const MediaManagerPage = () => {
 
     const handlePasswordSubmit = (password) => {
         if (!folderToUnlock) return;
-        const folderToOpenId = folderToUnlock._id;
-        
-        // [الحل] نحدّث state كلمة المرور أولاً. هذا سيؤدي إلى إعادة تشغيل الـ useEffect الرئيسي تلقائياً
-        setVerifiedPasswords(prev => ({ ...prev, [folderToOpenId]: password }));
-        
-        // بعد تحديث كلمة المرور، نغير المجلد الحالي ونضيفه للتاريخ
-        setCurrentFolderId(folderToOpenId);
-        setHistory(prev => {
-            if (prev.some(f => f._id === folderToOpenId)) return prev;
-            return [...prev, folderToUnlock];
-        });
-
+        setVerifiedPasswords(prev => ({ ...prev, [folderToUnlock._id]: password }));
         setPasswordModalOpen(false);
-        setFolderToUnlock(null);
     };
 
-    const refresh = useCallback(() => {
-        fetchContent();
-        fetchAllFolders();
-    }, [fetchContent, fetchAllFolders]);
+    const handleShareClick = (item) => { setFolderToShare(item); setShareModalOpen(true); };
 
-    // ... (باقي دوال الـ handle تبقى كما هي، لكنها ستعتمد على refresh)
-
-    const handleCreateFolder = async (name, password) => {
-        try {
-            await axios.post(`${API_URL}/folders`, { name, password, parentFolder: currentFolderId === 'root' ? null : currentFolderId });
-            setAddModalOpen(false);
-            refresh();
-        } catch(e) { alert(e.response?.data?.msg || "Error creating folder"); }
+    const handleEditClick = (item) => {
+        setItemToEdit(item);
+        if (item.mimetype) {
+            fetchAllFoldersForMove();
+            setEditMediaModalOpen(true);
+        } else {
+            setEditFolderModalOpen(true);
+        }
     };
-    
-    // ... باقي الدوال مثل handleUploadMedia, handleEditFolder, handleDelete etc. تستخدم refresh() في النهاية
-    const handleUploadMedia = async (files) => {
+
+    const handlePreviewClick = (item) => {
+        if(item.mimetype) {
+            setItemToPreview(item);
+            setPreviewModalOpen(true);
+        }
+    };
+
+    const handleCreateFolder = (name, password) => {
+        handleApiCall(() => axios.post(`${API_URL}/folders`, { name, password, parentFolder: currentFolderId }))
+            .then(success => success && setAddModalOpen(false));
+    };
+    const handleUploadMedia = (files) => {
         const formData = new FormData();
         for (let i = 0; i < files.length; i++) formData.append('files', files[i]);
-        if (currentFolderId !== 'root') formData.append('folderId', currentFolderId);
-        try {
-            await axios.post(`${API_URL}/media/upload`, formData);
-            setAddModalOpen(false);
-            refresh();
-        } catch(e) { alert(e.response?.data?.msg || "Error uploading files"); }
+        formData.append('folderId', currentFolderId);
+        handleApiCall(() => axios.post(`${API_URL}/media/upload`, formData))
+            .then(success => success && setAddModalOpen(false));
     };
-    
-    const handleEditFolder = async (folderId, data) => {
-        try {
-            await axios.put(`${API_URL}/folders/${folderId}`, data);
+    const handleEditFolder = async (id, data) => {
+        const success = await handleApiCall(() => axios.put(`${API_URL}/folders/${id}`, data));
+        if (success) {
+            setEditFolderModalOpen(false);
             setVerifiedPasswords(prev => {
                 const newVerified = { ...prev };
-                delete newVerified[folderId];
+                delete newVerified[id];
                 return newVerified;
             });
-            setEditFolderModalOpen(false);
-            refresh();
-        } catch(e) { alert(e.response?.data?.msg || "Error updating folder"); }
-    };
-
-    const handleUpdateMedia = async (mediaId, data) => {
-        try {
-            await axios.put(`${API_URL}/media/${mediaId}`, data);
-            setEditMediaModalOpen(false);
-            refresh();
-        } catch (e) {
-            alert(e.response?.data?.msg || "Error updating media file");
         }
     };
-    
-    const handleDelete = async (item) => {
-        const isFolder = !item.mimetype;
-        const type = isFolder ? 'folders' : 'media';
-        const confirmMsg = `Move this ${isFolder ? 'folder' : 'file'} to trash?`;
+    const handleEditMedia = (id, data) => handleApiCall(() => axios.put(`${API_URL}/media/${id}`, data)).then(success => success && setEditMediaModalOpen(false));
+    const handleSoftDelete = (item) => handleApiCall(() => axios.post(`${API_URL}/${item.mimetype ? 'media' : 'folders'}/${item._id}/delete`));
+    const handleRestore = (item) => handleApiCall(() => axios.post(`${API_URL}/${item.mimetype ? 'media' : 'folders'}/${item._id}/restore`));
+    const handleToggleFavorite = (item) => handleApiCall(() => axios.put(`${API_URL}/media/${item._id}/favorite`));
+    const handlePermanentDelete = (item) => {
+        if (!window.confirm("This action is irreversible. Are you sure you want to permanently delete this item?")) return;
+        handleApiCall(() => axios.delete(`${API_URL}/media/${item._id}/permanent`));
+    };
+    const handleContextMenu = (e, item) => { e.preventDefault(); e.stopPropagation(); setContextMenu({ x: e.pageX, y: e.pageY, item }); };
 
-        if (window.confirm(confirmMsg)) {
-            try {
-                await axios.post(`${API_URL}/${type}/${item._id}/delete`);
-                refresh();
-            } catch(e) { alert(e.response?.data?.msg || "Error moving to trash"); }
-        }
+    const getFileIcon = (item) => {
+        if (item.type === 'video' || item.mimetype.startsWith('video/')) return <Video className="mx-auto text-purple-500" size={48} />;
+        if (item.type === 'audio' || item.mimetype.startsWith('audio/')) return <Music className="mx-auto text-green-500" size={48} />;
+        if (item.type === 'pdf' || item.mimetype === 'application/pdf') return <FileText className="mx-auto text-red-500" size={48} />;
+        if (item.type === 'document') return <FileText className="mx-auto text-blue-500" size={48} />;
+        if (item.type === 'text' || item.mimetype.startsWith('text/')) return <FileCode className="mx-auto text-gray-500" size={48} />;
+        return <FileText className="mx-auto text-gray-400" size={48} />;
     };
 
-    const handlePermanentDelete = async (item) => {
-        const isFolder = !item.mimetype;
-        if(isFolder) {
-            alert("Permanent deletion of folders is not supported from the UI yet.");
-            return;
-        }
+    const isOwnerOfCurrentFolder = currentFolderData ? currentFolderData.user?._id === user?._id : currentFolderId === 'root';
+    const canWriteInCurrentView = userRole !== 'viewer';
 
-        if (window.confirm(`This will permanently delete "${item.filename}". This action cannot be undone.`)) {
-             try {
-                await axios.post(`${API_URL}/media/${item._id}/permanent`);
-                refresh();
-            } catch(e) { alert(e.response?.data?.msg || "Error deleting permanently"); }
-        }
-    };
-    
-    const handleRestore = async (item) => {
-        const isFolder = !item.mimetype;
-        const type = isFolder ? 'folders' : 'media';
-        try {
-            await axios.post(`${API_URL}/${type}/${item._id}/restore`, {});
-            refresh();
-        } catch(e) { alert(e.response?.data?.msg || "Error restoring item"); }
-    };
+    const renderContextMenu = () => {
+        if (!contextMenu) return null;
+        const { item } = contextMenu;
+        const isMedia = !!item.mimetype;
+        const isOwner = item.user?._id === user?._id;
 
-    const handleToggleFavorite = async (mediaId, e) => {
-        e.stopPropagation();
-        try {
-            await axios.put(`${API_URL}/media/${mediaId}/favorite`, {});
-            refresh(); // Easiest way to get updated data
-        } catch(e) { 
-            alert(e.response?.data?.msg || "Error favoriting file"); 
-        }
+        return (
+            <div style={{ top: contextMenu.y, left: contextMenu.x }} className="absolute bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-lg shadow-xl z-50 text-sm w-48 overflow-hidden">
+                {viewMode === 'drive' ? (
+                    <>
+                        {isMedia && <button onClick={() => { handlePreviewClick(item); setContextMenu(null); }} className="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center transition-colors duration-200"><Eye size={16} className="mr-3"/>Preview</button>}
+                        {canWriteInCurrentView && <button onClick={() => { handleEditClick(item); setContextMenu(null); }} className="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center transition-colors duration-200"><Edit size={16} className="mr-3"/>Rename / Move</button>}
+                        {isMedia && <button onClick={() => { handleToggleFavorite(item); setContextMenu(null); }} className="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center transition-colors duration-200">{item.isFavorite ? <StarOff size={16} className="mr-3"/> : <Star size={16} className="mr-3"/>}{item.isFavorite ? 'Unfavorite' : 'Favorite'}</button>}
+                        {!isMedia && isOwner && <button onClick={() => { handleShareClick(item); setContextMenu(null); }} className="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center transition-colors duration-200"><Users size={16} className="mr-3"/>Share</button>}
+                        <div className="my-1 border-t dark:border-gray-700"></div>
+                        {canWriteInCurrentView && <button onClick={() => { handleSoftDelete(item); setContextMenu(null); }} className="w-full text-left px-4 py-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/50 flex items-center transition-colors duration-200"><Trash2 size={16} className="mr-3"/>Move to Trash</button>}
+                    </>
+                ) : (
+                    <>
+                        {canWriteInCurrentView && <button onClick={() => { handleRestore(item); setContextMenu(null); }} className="w-full text-left px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 flex items-center transition-colors duration-200"><RotateCcw size={16} className="mr-3"/>Restore</button>}
+                        {isOwner && isMedia && <button onClick={() => { handlePermanentDelete(item); setContextMenu(null); }} className="w-full text-left px-4 py-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/50 flex items-center transition-colors duration-200"><FileX size={16} className="mr-3"/>Delete Permanently</button>}
+                    </>
+                )}
+            </div>
+        );
     };
 
-    const getFileIcon = (type) => {
-        if (type.startsWith('image')) return <ImageIcon className="mx-auto text-pink-500" size={48} />;
-        if (type.startsWith('video')) return <Video className="mx-auto text-purple-500" size={48} />;
-        if (type.startsWith('audio')) return <Music className="mx-auto text-green-500" size={48} />;
-        return <FileText className="mx-auto text-gray-500" size={48} />;
-    }
-    
-    // JSX remains largely the same
     return (
-        <div className="flex h-screen bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-200">
-            <aside className="w-64 bg-white dark:bg-gray-800 border-r dark:border-gray-700 p-4 flex flex-col">
-                 <h1 className="text-2xl font-bold text-blue-600 dark:text-blue-400 mb-8">AuraHub</h1>
-                <nav className="flex-grow">
-                     <button onClick={() => handleViewChange('drive')} className={`w-full text-left p-2 rounded font-semibold flex items-center ${viewMode === 'drive' ? 'bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-300' : 'hover:bg-gray-200 dark:hover:bg-gray-700'}`}><Home className="mr-3" size={20}/> My Drive</button>
-                     <button onClick={() => handleViewChange('trash')} className={`w-full text-left p-2 rounded font-semibold flex items-center mt-2 ${viewMode === 'trash' ? 'bg-blue-100 dark:bg-blue-900 text-blue-600 dark:text-blue-300' : 'hover:bg-gray-200 dark:hover:bg-gray-700'}`}><Trash className="mr-3" size={20}/> Recycle Bin</button>
+        <div className="flex h-screen bg-gradient-to-br from-gray-50 to-gray-200 dark:from-gray-950 dark:to-gray-850 font-sans antialiased">
+            {/* Sidebar */}
+            <aside className="w-64 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 p-6 flex flex-col shadow-lg">
+                <h1 className="text-3xl font-extrabold text-blue-600 dark:text-blue-400 mb-8 flex items-center">
+                    <ImageIcon className="mr-3" size={32} /> AuraHub
+                </h1>
+                <nav className="flex-grow overflow-y-auto pr-2">
+                    <button onClick={() => handleViewChange('drive')} className={`group w-full text-left p-3 rounded-lg font-semibold flex items-center transition-all duration-200 ${viewMode === 'drive' ? 'bg-blue-500 text-white shadow-md' : 'hover:bg-blue-50 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300'}`}>
+                        <Home className={`mr-4 transition-colors duration-200 ${viewMode === 'drive' ? 'text-white' : 'text-blue-500 group-hover:text-blue-600 dark:group-hover:text-blue-400'}`} size={20}/> My Drive
+                    </button>
+                    <button onClick={() => handleViewChange('trash')} className={`group w-full text-left p-3 rounded-lg font-semibold flex items-center mt-3 transition-all duration-200 ${viewMode === 'trash' ? 'bg-blue-500 text-white shadow-md' : 'hover:bg-blue-50 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300'}`}>
+                        <Trash className={`mr-4 transition-colors duration-200 ${viewMode === 'trash' ? 'text-white' : 'text-red-500 group-hover:text-red-600 dark:group-hover:text-red-400'}`} size={20}/> Recycle Bin
+                    </button>
+                    <div className="mt-8 pt-6 border-t border-gray-200 dark:border-gray-700">
+                        <h3 className="px-3 mb-3 text-xs font-bold uppercase text-gray-500 dark:text-gray-400">My Folders</h3>
+                        {sidebarFolders.myFolders.length === 0 && <p className="px-3 text-sm text-gray-500">No folders yet.</p>}
+                        {sidebarFolders.myFolders.map(f => (
+                            <button key={f._id} onClick={() => handleFolderClick(f)} className="group w-full text-left p-3 rounded-lg text-sm flex items-center hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors duration-200 text-gray-700 dark:text-gray-300">
+                                <Folder className="mr-4 text-blue-500 group-hover:text-blue-600 dark:group-hover:text-blue-400" size={16}/>
+                                <span className="truncate">{f.name}</span>
+                            </button>
+                        ))}
+                    </div>
+                    <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
+                        <h3 className="px-3 mb-3 text-xs font-bold uppercase text-gray-500 dark:text-gray-400">Shared With Me</h3>
+                        {sidebarFolders.sharedWithMe.length === 0 && <p className="px-3 text-sm text-gray-500">No shared folders.</p>}
+                        {sidebarFolders.sharedWithMe.map(f => (
+                            <button key={f._id} onClick={() => handleFolderClick(f)} className="group w-full text-left p-3 rounded-lg text-sm flex items-center hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors duration-200 text-gray-700 dark:text-gray-300">
+                                <FolderSymlink className="mr-4 text-purple-500 group-hover:text-purple-600 dark:group-hover:text-purple-400" size={16}/>
+                                <span className="truncate">{f.name}</span>
+                            </button>
+                        ))}
+                    </div>
                 </nav>
-                <div className="border-t dark:border-gray-700 pt-4">
-                    <p className="text-sm font-semibold">{user?.username}</p>
-                    <button onClick={logout} className="text-sm text-red-500 hover:underline">Logout</button>
+                <div className="border-t border-gray-200 dark:border-gray-700 pt-6 mt-auto flex items-center justify-between">
+                    <div>
+                        <p className="text-base font-semibold text-gray-800 dark:text-gray-200">{user?.username}</p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">{user?.email}</p>
+                    </div>
+                    <button onClick={logout} className="text-sm text-red-500 hover:text-red-700 dark:hover:text-red-400 transition-colors duration-200 p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800" title="Logout">
+                        <LogOut size={20} />
+                    </button>
                 </div>
             </aside>
-            <main className="flex-1 p-8 overflow-y-auto">
-                <header className="flex flex-wrap justify-between items-center mb-6 pb-4 border-b dark:border-gray-700">
-                <h1 className="text-3xl font-bold">{viewMode === 'trash' ? 'Recycle Bin' : 'Content'}</h1>
-                {viewMode !== 'trash' && <div className="flex items-center space-x-4 mt-4 md:mt-0"><button onClick={() => setAddModalOpen(true)} className="bg-blue-600 text-white px-5 py-2 rounded-lg shadow hover:bg-blue-700 transition flex items-center"><PlusCircle className="mr-2" size={20} /> Add New</button></div>}
-                </header>
-                <div className="flex flex-col md:flex-row gap-4 mb-6">
-                    <div className="relative flex-grow"><Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={20} /><input type="text" placeholder="Search..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} className="w-full pl-10 pr-4 py-2 border rounded-lg bg-white dark:bg-gray-700 dark:border-gray-600" /></div>
-                    {viewMode === 'drive' && <div className="flex items-center gap-2 bg-gray-200 dark:bg-gray-800 p-1 rounded-lg overflow-x-auto">{['all', 'image', 'video', 'audio', 'document', 'favorites'].map(filter => (<button key={filter} onClick={() => setActiveFilter(filter)} className={`px-3 py-1 rounded-md text-sm font-semibold ${activeFilter === filter ? 'bg-white dark:bg-gray-700 text-blue-600 dark:text-blue-300 shadow' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-300 dark:hover:bg-gray-600'}`}>{filter.charAt(0).toUpperCase() + filter.slice(1)}</button>))}</div>}
-                </div>
-                {viewMode === 'drive' && <nav className="flex items-center space-x-2 bg-gray-200 dark:bg-gray-800 p-2 rounded-lg mb-6 text-sm flex-wrap">{history.map((folder, index) => (<React.Fragment key={`${folder._id}-${index}`}><button onClick={() => handleBreadcrumbClick(folder._id, index)} className="flex items-center text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400">{folder._id === 'root' ? <Home className="mr-1" size={16}/> : null}<span className={index === history.length -1 ? 'font-bold' : ''}>{folder.name}</span></button>{index < history.length - 1 && <ChevronRight size={16} className="text-gray-400" />}</React.Fragment>))}</nav>}
 
-                {loading ? <div className="flex justify-center p-10"><Loader2 className="animate-spin text-blue-500" size={48} /></div> :
-                    (content.folders.length === 0 && content.media.length === 0) ? <div className="text-center py-16 text-gray-500"><Trash size={64} className="mx-auto"/><p className="mt-4 text-xl">This space is empty</p></div> :
-                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-6">
-                        {content.folders.map(folder => (<div key={`folder-${folder._id}`} onDoubleClick={() => handleFolderClick(folder)} className="bg-white dark:bg-gray-800 p-4 border dark:border-gray-700 rounded-lg shadow-sm text-center cursor-pointer hover:shadow-lg relative group">{folder.hasPassword ? <Lock size={48} className="mx-auto text-yellow-500"/> : <Folder size={48} className="mx-auto text-blue-500"/>}<p className="mt-2 font-semibold truncate">{folder.name}</p><div className="absolute top-2 right-2 flex flex-col space-y-1 opacity-0 group-hover:opacity-100 transition-opacity">{viewMode === 'trash' ? <button onClick={(e) => { e.stopPropagation(); handleRestore(folder); }} className="p-1.5 bg-blue-500 text-white rounded-full hover:bg-blue-600"><RotateCcw size={14} /></button> : <button onClick={(e) => { e.stopPropagation(); setItemToEdit(folder); setEditFolderModalOpen(true); }} className="p-1.5 bg-green-500 text-white rounded-full hover:bg-green-600"><Edit size={14} /></button>}<button onClick={(e) => { e.stopPropagation(); isFolder ? handleDelete(folder) : handlePermanentDelete(folder); }} className="p-1.5 bg-red-500 text-white rounded-full hover:bg-red-600"><Trash2 size={14} /></button></div></div>))}
-                        {content.media.map(item => (<div key={`media-${item._id}`} className="bg-white dark:bg-gray-800 p-4 border dark:border-gray-700 rounded-lg shadow-sm text-center hover:shadow-lg relative group">
-                            <a href={`http://localhost:5000/${item.path}`} target="_blank" rel="noopener noreferrer" className="block text-gray-500 h-20 flex items-center justify-center">{getFileIcon(item.mimetype)}</a>
-                            <p className="mt-2 text-sm font-semibold truncate">{item.filename}</p>
-                            <div className="absolute top-2 right-2 flex flex-col space-y-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                {viewMode === 'trash' ?
-                                    <>
-                                        <button onClick={(e) => { e.stopPropagation(); handleRestore(item); }} className="p-1.5 bg-blue-500 text-white rounded-full hover:bg-blue-600"><RotateCcw size={14} /></button>
-                                        <button onClick={(e) => { e.stopPropagation(); handlePermanentDelete(item); }} className="p-1.5 bg-red-700 text-white rounded-full hover:bg-red-800"><Trash size={14} /></button>
-                                    </> :
-                                    <>
-                                        <button onClick={(e) => { e.stopPropagation(); setItemToEdit(item); setEditMediaModalOpen(true); }} className="p-1.5 bg-green-500 text-white rounded-full hover:bg-green-600"><Edit size={14} /></button>
-                                        <button onClick={(e) => handleToggleFavorite(item._id, e)} className={`p-1.5 text-white rounded-full ${item.isFavorite ? 'bg-yellow-400 hover:bg-yellow-500' : 'bg-gray-400 hover:bg-gray-500'}`}><Star size={14} /></button>
-                                        <button onClick={(e) => { e.stopPropagation(); handleDelete(item); }} className="p-1.5 bg-red-500 text-white rounded-full hover:bg-red-600"><Trash2 size={14} /></button>
-                                    </>
-                                }
-                            </div>
-                        </div>))}
+            {/* Main Content Area */}
+            <main className="flex-1 p-8 flex flex-col bg-gray-100 dark:bg-gray-900 rounded-tl-xl shadow-inner overflow-hidden">
+                {/* Header */}
+                <header className="flex-shrink-0 flex flex-col md:flex-row justify-between items-start md:items-center mb-6 pb-4 border-b border-gray-200 dark:border-gray-700">
+                    <div>
+                        <h1 className="text-4xl font-extrabold text-gray-900 dark:text-gray-100 mb-1 leading-tight">{history[history.length - 1]?.name}</h1>
+                        {currentFolderData && <p className="text-sm text-gray-500 dark:text-gray-400">Owned by <span className="font-medium text-gray-600 dark:text-gray-300">{isOwnerOfCurrentFolder ? 'you' : currentFolderData.user.username}</span></p>}
                     </div>
-                }
-                
-                {/* Modals */}
-                <AddItemModal isOpen={isAddModalOpen} onClose={() => setAddModalOpen(false)} onCreateFolder={handleCreateFolder} onUploadMedia={handleUploadMedia} />
-                <EditFolderModal isOpen={isEditFolderModalOpen} onClose={() => { setEditFolderModalOpen(false); setItemToEdit(null); }} folder={itemToEdit} onSave={handleEditFolder}/>
-                <EditMediaModal isOpen={isEditMediaModalOpen} onClose={() => { setEditMediaModalOpen(false); setItemToEdit(null); }} media={itemToEdit} onSave={handleUpdateMedia} allFolders={allFolders} />
+                    {viewMode !== 'trash' && canWriteInCurrentView && (
+                        <button onClick={() => setAddModalOpen(true)} className="bg-blue-600 text-white px-6 py-3 rounded-xl shadow-lg hover:bg-blue-700 transition-all duration-300 ease-in-out transform hover:-translate-y-1 hover:scale-105 flex items-center mt-4 md:mt-0 font-semibold text-lg">
+                            <PlusCircle className="mr-3" size={24}/> Add New
+                        </button>
+                    )}
+                </header>
+
+                {/* Search and Filter */}
+                <div className="flex-shrink-0 flex flex-col md:flex-row gap-4 mb-6">
+                    <div className="relative flex-grow">
+                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500" size={20}/>
+                        <input
+                            type="text"
+                            placeholder="Search files and folders..."
+                            value={searchQuery}
+                            onChange={e => setSearchQuery(e.target.value)}
+                            className="w-full pl-12 pr-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm transition-all duration-200"
+                        />
+                    </div>
+                    {viewMode === 'drive' && (
+                        <div className="flex items-center gap-2 bg-gray-200 dark:bg-gray-800 p-2 rounded-xl overflow-x-auto shadow-inner">
+                            {['all', 'image', 'video', 'audio', 'document', 'favorites'].map(f => (
+                                <button
+                                    key={f}
+                                    onClick={() => setActiveFilter(f)}
+                                    className={`px-4 py-2 rounded-lg text-sm font-semibold whitespace-nowrap transition-all duration-200
+                                        ${activeFilter === f ? 'bg-white dark:bg-gray-700 text-blue-700 dark:text-blue-300 shadow-md' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'}
+                                    `}
+                                >
+                                    {f.charAt(0).toUpperCase() + f.slice(1)}
+                                </button>
+                            ))}
+                        </div>
+                    )}
+                </div>
+
+                {/* Breadcrumbs */}
+                {viewMode === 'drive' && (
+                    <nav className="flex-shrink-0 flex items-center space-x-2 bg-white dark:bg-gray-800 p-3 rounded-xl mb-6 text-sm shadow-sm border border-gray-200 dark:border-gray-700">
+                        <Home onClick={() => handleBreadcrumbClick('root', 0)} className="cursor-pointer text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 transition-colors duration-200" size={20}/>
+                        {history.map((f, i) => (
+                            <React.Fragment key={f._id}>
+                                {i > 0 && <ChevronRight size={16} className="text-gray-400"/>}
+                                <button
+                                    onClick={() => handleBreadcrumbClick(f._id, i)}
+                                    className={`font-medium ${i === history.length - 1 ? 'text-gray-800 dark:text-gray-100 cursor-default' : 'text-blue-600 dark:text-blue-400 hover:underline'}`}
+                                >
+                                    {f.name}
+                                </button>
+                            </React.Fragment>
+                        ))}
+                    </nav>
+                )}
+
+                {/* Content Display Area */}
+                <div className="flex-grow overflow-y-auto p-4 bg-white dark:bg-gray-800 rounded-xl shadow-inner border border-gray-200 dark:border-gray-700">
+                    {loading ? (
+                        <div className="flex flex-col items-center justify-center h-full text-blue-500">
+                            <Loader2 className="animate-spin text-blue-500 mb-4" size={64}/>
+                            <p className="text-xl font-medium">Loading content...</p>
+                        </div>
+                    ) : error ? (
+                        <div className="flex flex-col items-center justify-center h-full text-red-500">
+                            <ShieldAlert size={80} className="mb-4"/>
+                            <p className="text-2xl font-semibold">{error}</p>
+                            <p className="text-md text-gray-500 mt-2">Please try again or check permissions.</p>
+                        </div>
+                    ) : (content.folders.length === 0 && content.media.length === 0) ? (
+                        <div className="flex flex-col items-center justify-center h-full text-gray-500">
+                            <Folder size={80} className="mb-4"/>
+                            <p className="text-2xl font-semibold">This folder is empty</p>
+                            {viewMode === 'drive' && canWriteInCurrentView && <p className="mt-2 text-md">Click "Add New" to upload files or create folders.</p>}
+                        </div>
+                    ) : (
+                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6 p-2">
+                            {/* Folders */}
+                            {content.folders.map(f => (
+                                <div
+                                    key={f._id}
+                                    onDoubleClick={() => handleFolderClick(f)}
+                                    onContextMenu={(e) => handleContextMenu(e, f)}
+                                    className="bg-gray-50 dark:bg-gray-900 p-5 border border-gray-200 dark:border-gray-700 rounded-xl text-center cursor-pointer hover:shadow-lg transform hover:-translate-y-1 transition-all duration-200 relative group"
+                                >
+                                    {f.hasPassword ? <Lock size={48} className="mx-auto text-yellow-500 group-hover:text-yellow-600 transition-colors duration-200" title="Password protected"/> : <Folder size={48} className="mx-auto text-blue-500 group-hover:text-blue-600 transition-colors duration-200"/>}
+                                    <p className="mt-3 font-semibold text-gray-800 dark:text-gray-200 truncate">{f.name}</p>
+                                    <button
+                                        onClick={(e) => handleContextMenu(e, f)}
+                                        className="absolute top-2 right-2 p-2 rounded-full text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700 opacity-0 group-hover:opacity-100 transition-opacity duration-200 focus:opacity-100"
+                                        title="More options"
+                                    >
+                                        <MoreVertical size={20}/>
+                                    </button>
+                                </div>
+                            ))}
+                            {/* Media Files */}
+                            {content.media.map(m => (
+                                <div
+                                    key={m._id}
+                                    onDoubleClick={() => handlePreviewClick(m)}
+                                    onContextMenu={(e) => handleContextMenu(e, m)}
+                                    className="bg-gray-50 dark:bg-gray-900 p-5 border border-gray-200 dark:border-gray-700 rounded-xl text-center hover:shadow-lg transform hover:-translate-y-1 transition-all duration-200 relative group cursor-pointer"
+                                >
+                                    {m.isFavorite && <Star size={20} className="absolute top-3 left-3 text-yellow-400 fill-current z-10"/>}
+                                    <div className="h-28 w-full bg-gray-100 dark:bg-gray-700 rounded-lg overflow-hidden flex items-center justify-center mb-3 shadow-inner">
+                                        {(m.type === 'image' || m.mimetype.startsWith('image/')) ? (
+                                            <img src={`${STATIC_URL}/${m.path}`} alt={m.filename} className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105" loading="lazy"/>
+                                        ) : (
+                                            getFileIcon(m)
+                                        )}
+                                    </div>
+                                    <p className="text-sm font-semibold text-gray-800 dark:text-gray-200 truncate">{m.filename}</p>
+                                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{m.mimetype.split('/')[0].toUpperCase()}</p>
+                                    <button
+                                        onClick={(e) => handleContextMenu(e, m)}
+                                        className="absolute top-2 right-2 p-2 rounded-full text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700 opacity-0 group-hover:opacity-100 transition-opacity duration-200 focus:opacity-100"
+                                        title="More options"
+                                    >
+                                        <MoreVertical size={20}/>
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+
+                {renderContextMenu()}
+                <PreviewModal isOpen={isPreviewModalOpen} onClose={() => setPreviewModalOpen(false)} item={itemToPreview} />
+                <AddItemModal isOpen={isAddModalOpen} onClose={() => setAddModalOpen(false)} onCreateFolder={handleCreateFolder} onUploadMedia={handleUploadMedia}/>
+                <EditFolderModal isOpen={isEditFolderModalOpen} onClose={() => setEditFolderModalOpen(false)} folder={itemToEdit} onSave={handleEditFolder}/>
+                <EditMediaModal isOpen={isEditMediaModalOpen} onClose={() => setEditMediaModalOpen(false)} media={itemToEdit} onSave={handleEditMedia} allFolders={allFoldersForMove} />
                 <PasswordPromptModal isOpen={isPasswordModalOpen} onClose={() => setPasswordModalOpen(false)} folderName={folderToUnlock?.name} onSubmit={handlePasswordSubmit} />
+                <ShareModal isOpen={isShareModalOpen} onClose={() => setShareModalOpen(false)} folder={folderToShare} onCollaboratorsUpdate={refreshAll} />
             </main>
         </div>
     );

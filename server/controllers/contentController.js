@@ -1,8 +1,6 @@
 const Folder = require('../models/Folder');
 const Media = require('../models/Media');
 const User = require('../models/User');
-
-// Helper to check access
 const hasAccess = (item, userId) => {
     if (item.owner.toString() === userId) return true;
     return item.collaborators?.some(c => c.user.toString() === userId);
@@ -21,20 +19,15 @@ exports.getFolderContent = async (req, res) => {
     try {
         const { folderId } = req.params;
         const userId = req.user.id;
-        
         const folders = await Folder.find({ owner: userId, parentFolder: folderId === 'root' ? null : folderId });
         const media = await Media.find({ owner: userId, folder: folderId === 'root' ? null : folderId });
-        
-        // Add collaborators info to folders
         const populatedFolders = await Promise.all(folders.map(async f => {
             const folder = await Folder.findById(f._id).populate('owner', 'username').populate('collaborators.user', 'username email');
             return folder;
         }));
-
         res.json({ folders: populatedFolders, media });
     } catch (e) { res.status(500).json({ msg: e.message });}
 };
-
 exports.createFolder = async (req, res) => {
     const { name, parentFolder } = req.body;
     try {
@@ -43,7 +36,6 @@ exports.createFolder = async (req, res) => {
         res.status(201).json(newFolder);
     } catch (e) { res.status(400).json({ msg: e.message }); }
 };
-
 exports.uploadFiles = async (req, res) => {
     const { folderId } = req.body;
     try {
