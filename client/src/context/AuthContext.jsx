@@ -1,3 +1,5 @@
+// File: frontend/src/context/AuthContext.js
+
 import React, { createContext, useState, useContext, useEffect, useCallback } from 'react';
 import axios from 'axios';
 
@@ -8,8 +10,7 @@ export const useAuth = () => useContext(AuthContext);
 
 export const AuthProvider = ({ children }) => {
     const [user, setUser] = useState(null);
-    const [token, setToken] = useState(localStorage.getItem('token'));
-    const [isAuthenticated, setIsAuthenticated] = useState(!!token);
+    const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
 
@@ -22,12 +23,14 @@ export const AuthProvider = ({ children }) => {
             localStorage.removeItem('token');
         }
     }, []);
+
     const loadUser = useCallback(async () => {
         const token = localStorage.getItem('token');
         if (token) {
             setAuthToken(token);
             try {
-                const res = await axios.get(`${API_URL}/user`);
+                // Changed API endpoint to match your controller
+                const res = await axios.get(`${API_URL}/me`); 
                 setUser(res.data);
                 setIsAuthenticated(true);
             } catch (err) {
@@ -49,7 +52,7 @@ export const AuthProvider = ({ children }) => {
         try {
             const res = await axios.post(`${API_URL}/login`, { email, password });
             setAuthToken(res.data.token);
-            await loadUser(); 
+            await loadUser(); // Reload user data after setting token
         } catch (err) {
             setError(err.response?.data?.msg || 'Login failed');
             setAuthToken(null);
@@ -60,17 +63,20 @@ export const AuthProvider = ({ children }) => {
         }
     };
 
+    // --- LOGIC CHANGED HERE ---
     const register = async (username, email, password) => {
-         setLoading(true);
+        setLoading(true);
         setError(null);
         try {
+            // We only make the API call. We DO NOT set the token or log the user in.
+            // The backend will send a verification email.
             const res = await axios.post(`${API_URL}/register`, { username, email, password });
-            setAuthToken(res.data.token);
-            await loadUser();
+            // Return the success message to be displayed on the Register page.
+            return { success: true, message: res.data.msg };
         } catch (err) {
             setError(err.response?.data?.msg || 'Registration failed');
-            setAuthToken(null);
-            setIsAuthenticated(false);
+            // Ensure user is not authenticated if registration fails
+            setIsAuthenticated(false); 
             throw err;
         } finally {
             setLoading(false);
@@ -84,7 +90,7 @@ export const AuthProvider = ({ children }) => {
     };
 
     return (
-        <AuthContext.Provider value={{ user, token, isAuthenticated, loading, error, login, register, logout, loadUser }}>
+        <AuthContext.Provider value={{ user, isAuthenticated, loading, error, login, register, logout, loadUser }}>
             {children}
         </AuthContext.Provider>
     );
