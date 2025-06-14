@@ -6,6 +6,7 @@ module.exports = {
   ],
   theme: {
     extend: {
+      
       boxShadow: {
         'custom-purple': '0 10px 30px rgba(128, 0, 128, 0.5)', 
         'custom-purple-lg': '0 20px 60px rgba(128, 0, 128, 0.7)', 

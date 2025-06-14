@@ -1,13 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import axios from 'axios';
-import { Loader2, CheckCircle, XCircle } from 'lucide-react'; // استيراد أيقونات
+import { Loader2, CheckCircle, XCircle } from 'lucide-react';
 
 const API_URL = 'http://localhost:5000/api/auth';
 
 const VerifyEmailPage = () => {
     const [searchParams] = useSearchParams();
-    const [status, setStatus] = useState('verifying'); // الحالات: 'verifying', 'success', 'error'
+    const [status, setStatus] = useState('verifying');
     const [message, setMessage] = useState('Verifying your email, please wait...');
 
     useEffect(() => {
@@ -28,6 +28,7 @@ const VerifyEmailPage = () => {
                 setMessage(err.response?.data?.msg || 'An unknown error occurred during verification.');
             }
         };
+
         verifyEmail();
     }, [searchParams]);
 
@@ -36,10 +37,13 @@ const VerifyEmailPage = () => {
             case 'success':
                 return (
                     <>
-                        <CheckCircle className="mx-auto h-16 w-16 text-green-500" />
-                        <h2 className="text-3xl font-bold text-gray-800">Email Verified!</h2>
-                        <p className="text-green-600 bg-green-100 p-3 rounded-md">{message}</p>
-                        <Link to="/login" className="w-full block text-center px-4 py-2 font-bold text-white bg-blue-500 rounded-md hover:bg-blue-600 transition duration-300">
+                        <CheckCircle className="mx-auto h-16 w-16 text-green-400" />
+                        <h2 className="text-3xl font-bold text-slate-100">Email Verified!</h2>
+                        <p className="text-green-300 bg-green-900/50 p-3 rounded-lg">{message}</p>
+                        <Link 
+                            to="/login" 
+                            className="w-full mt-4 block text-center px-4 py-3 font-bold text-white bg-gradient-to-r from-brand-secondary to-brand-primary rounded-lg hover:opacity-90 transition-opacity duration-300"
+                        >
                             Proceed to Login
                         </Link>
                     </>
@@ -47,31 +51,32 @@ const VerifyEmailPage = () => {
             case 'error':
                 return (
                     <>
-                        <XCircle className="mx-auto h-16 w-16 text-red-500" />
-                        <h2 className="text-3xl font-bold text-gray-800">Verification Failed</h2>
-                        <p className="text-red-600 bg-red-100 p-3 rounded-md">{message}</p>
-                        <p className="text-sm text-gray-500">
-                           Please <Link to="/register" className="text-blue-500 hover:underline">register again</Link> to receive a new link.
+                        <XCircle className="mx-auto h-16 w-16 text-red-400" />
+                        <h2 className="text-3xl font-bold text-slate-100">Verification Failed</h2>
+                        <p className="text-red-400 bg-red-900/50 p-3 rounded-lg">{message}</p>
+                        <p className="text-sm text-slate-500 mt-4">
+                           Please <Link to="/register" className="font-semibold text-brand-primary hover:underline">register again</Link> to receive a new link.
                         </p>
                     </>
                 );
-            default: // 'verifying'
+            default:
                 return (
                     <>
-                        <Loader2 className="mx-auto h-16 w-16 text-blue-500 animate-spin" />
-                        <h2 className="text-3xl font-bold text-gray-800">Verifying...</h2>
-                        <p className="text-gray-600">{message}</p>
+                        <Loader2 className="mx-auto h-16 w-16 text-brand-primary animate-spin" />
+                        <h2 className="text-3xl font-bold text-slate-100">Verifying...</h2>
+                        <p className="text-slate-400">{message}</p>
                     </>
                 );
         }
     };
 
     return (
-        <div className="flex justify-center items-center min-h-screen bg-gray-100">
-            <div className="w-full max-w-md p-8 space-y-6 bg-white rounded-lg shadow-xl text-center">
+        <div className="flex justify-center items-center min-h-screen bg-slate-950 p-4">
+            <div className="w-full max-w-md p-8 space-y-6 bg-slate-900 rounded-2xl shadow-2xl shadow-black/25 text-center">
                 {renderContent()}
             </div>
         </div>
     );
 };
+
 export default VerifyEmailPage;

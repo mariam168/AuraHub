@@ -1,5 +1,3 @@
-// File: backend/models/User.js
-
 const mongoose = require('mongoose');
 
 const UserSchema = new mongoose.Schema({
@@ -7,7 +5,6 @@ const UserSchema = new mongoose.Schema({
     email: { type: String, required: true, unique: true, lowercase: true, trim: true },
     password: { type: String, required: true, minlength: 6 },
     isVerified: { type: Boolean, default: false },
-    // --- CHANGED: Added 'select: false' for security ---
     verificationToken: { 
         type: String,
         select: false 

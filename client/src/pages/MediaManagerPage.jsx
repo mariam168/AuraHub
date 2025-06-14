@@ -4,7 +4,8 @@ import { useAuth } from '../context/AuthContext';
 import {
     Folder, FileText, Image as ImageIcon, Video, Music, Lock, PlusCircle,
     LogOut, Edit, Trash2, Home, ChevronRight, Loader2, Star, Search,
-    RotateCcw, Trash, Users, FolderSymlink, MoreVertical, StarOff, FileX, ShieldAlert, Eye, FileCode
+    RotateCcw, Trash, Users, FolderSymlink, MoreVertical, StarOff, FileX, ShieldAlert, Eye, FileCode,
+    Menu, X 
 } from 'lucide-react';
 import AddItemModal from '../components/AddItemModal';
 import EditFolderModal from '../components/EditFolderModal';
@@ -12,13 +13,11 @@ import EditMediaModal from '../components/EditMediaModal';
 import PasswordPromptModal from '../components/PasswordPromptModal';
 import ShareModal from '../components/ShareModal';
 import PreviewModal from '../components/PreviewModal';
-
 const API_URL = 'http://localhost:5000/api/content';
 const STATIC_URL = 'http://localhost:5000';
-
 const MediaManagerPage = () => {
     const { user, logout } = useAuth();
-
+    const [isSidebarOpen, setSidebarOpen] = useState(false);
     const [content, setContent] = useState({ folders: [], media: [] });
     const [currentFolderData, setCurrentFolderData] = useState(null);
     const [userRole, setUserRole] = useState('owner');
@@ -43,7 +42,6 @@ const MediaManagerPage = () => {
     const [folderToUnlock, setFolderToUnlock] = useState(null);
     const [folderToShare, setFolderToShare] = useState(null);
     const [contextMenu, setContextMenu] = useState(null);
-
     const fetchContent = useCallback(async (folderId, currentHistory) => {
         setLoading(true);
         setError('');
@@ -82,13 +80,11 @@ const MediaManagerPage = () => {
             setAllFoldersForMove(res.data);
         } catch (error) { console.error("Failed to fetch folders for move dialog:", error); }
     }, []);
-
     useEffect(() => {
         const handler = (e) => { if (contextMenu) setContextMenu(null); };
         window.addEventListener('click', handler);
         return () => window.removeEventListener('click', handler);
     }, [contextMenu]);
-
     useEffect(() => {
         const debounce = setTimeout(() => fetchContent(currentFolderId, history), 300);
         return () => clearTimeout(debounce);
@@ -100,7 +96,6 @@ const MediaManagerPage = () => {
         fetchContent(currentFolderId, history);
         fetchSidebarFolders();
     }, [currentFolderId, history, fetchContent, fetchSidebarFolders]);
-
     const handleApiCall = async (apiCall) => {
         try {
             await apiCall();
@@ -118,30 +113,27 @@ const MediaManagerPage = () => {
         setHistory(prev => [...prev, { _id: folder._id, name: folder.name }]);
         setSearchQuery('');
         setActiveFilter('all');
+        setSidebarOpen(false); 
     };
-
     const handleBreadcrumbClick = (folderId, index) => {
         if (viewMode === 'trash') handleViewChange('drive');
         setCurrentFolderId(folderId);
         setHistory(prev => prev.slice(0, index + 1));
     };
-
     const handleViewChange = (newView) => {
         setViewMode(newView);
         setCurrentFolderId('root');
         setHistory([{ _id: 'root', name: newView === 'trash' ? 'Recycle Bin' : 'My Drive' }]);
         setSearchQuery('');
         setActiveFilter('all');
+        setSidebarOpen(false); 
     };
-
     const handlePasswordSubmit = (password) => {
         if (!folderToUnlock) return;
         setVerifiedPasswords(prev => ({ ...prev, [folderToUnlock._id]: password }));
         setPasswordModalOpen(false);
     };
-
     const handleShareClick = (item) => { setFolderToShare(item); setShareModalOpen(true); };
-
     const handleEditClick = (item) => {
         setItemToEdit(item);
         if (item.mimetype) {
@@ -151,14 +143,12 @@ const MediaManagerPage = () => {
             setEditFolderModalOpen(true);
         }
     };
-
     const handlePreviewClick = (item) => {
         if(item.mimetype) {
             setItemToPreview(item);
             setPreviewModalOpen(true);
         }
     };
-
     const handleCreateFolder = (name, password) => {
         handleApiCall(() => axios.post(`${API_URL}/folders`, { name, password, parentFolder: currentFolderId }))
             .then(success => success && setAddModalOpen(false));
@@ -199,16 +189,13 @@ const MediaManagerPage = () => {
         if (item.type === 'text' || item.mimetype.startsWith('text/')) return <FileCode className="mx-auto text-gray-500" size={48} />;
         return <FileText className="mx-auto text-gray-400" size={48} />;
     };
-
     const isOwnerOfCurrentFolder = currentFolderData ? currentFolderData.user?._id === user?._id : currentFolderId === 'root';
     const canWriteInCurrentView = userRole !== 'viewer';
-
     const renderContextMenu = () => {
         if (!contextMenu) return null;
         const { item } = contextMenu;
         const isMedia = !!item.mimetype;
         const isOwner = item.user?._id === user?._id;
-
         return (
             <div style={{ top: contextMenu.y, left: contextMenu.x }} className="absolute bg-white dark:bg-gray-800 border dark:border-gray-700 rounded-lg shadow-xl z-50 text-sm w-48 overflow-hidden">
                 {viewMode === 'drive' ? (
@@ -229,14 +216,20 @@ const MediaManagerPage = () => {
             </div>
         );
     };
-
     return (
-        <div className="flex h-screen bg-gradient-to-br from-gray-50 to-gray-200 dark:from-gray-950 dark:to-gray-850 font-sans antialiased">
-            {/* Sidebar */}
-            <aside className="w-64 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 p-6 flex flex-col shadow-lg">
-                <h1 className="text-3xl font-extrabold text-blue-600 dark:text-blue-400 mb-8 flex items-center">
-                    <ImageIcon className="mr-3" size={32} /> AuraHub
-                </h1>
+        <div className="flex h-screen bg-gradient-to-br from-gray-50 to-gray-200 dark:from-gray-950 dark:to-gray-850 font-sans antialiased overflow-hidden">
+            <aside className={`fixed inset-y-0 left-0 bg-white dark:bg-gray-900 w-64 border-r border-gray-200 dark:border-gray-700 p-6 flex flex-col shadow-lg transform transition-transform duration-300 ease-in-out z-40
+                ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} 
+                lg:relative lg:translate-x-0 lg:w-64`}>
+                
+                <div className="flex items-center justify-between mb-8">
+                    <h1 className="text-3xl font-extrabold text-blue-600 dark:text-blue-400 flex items-center">
+                        <ImageIcon className="mr-3" size={32} /> NotaKok
+                    </h1>
+                    <button onClick={() => setSidebarOpen(false)} className="lg:hidden text-gray-500 hover:text-gray-800 dark:hover:text-gray-200">
+                        <X size={24}/>
+                    </button>
+                </div>
                 <nav className="flex-grow overflow-y-auto pr-2">
                     <button onClick={() => handleViewChange('drive')} className={`group w-full text-left p-3 rounded-lg font-semibold flex items-center transition-all duration-200 ${viewMode === 'drive' ? 'bg-blue-500 text-white shadow-md' : 'hover:bg-blue-50 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300'}`}>
                         <Home className={`mr-4 transition-colors duration-200 ${viewMode === 'drive' ? 'text-white' : 'text-blue-500 group-hover:text-blue-600 dark:group-hover:text-blue-400'}`} size={20}/> My Drive
@@ -267,7 +260,6 @@ const MediaManagerPage = () => {
                 </nav>
                 <div className="border-t border-gray-200 dark:border-gray-700 pt-6 mt-auto flex items-center justify-between">
                     <div>
-                        <p className="text-base font-semibold text-gray-800 dark:text-gray-200">{user?.username}</p>
                         <p className="text-xs text-gray-500 dark:text-gray-400">{user?.email}</p>
                     </div>
                     <button onClick={logout} className="text-sm text-red-500 hover:text-red-700 dark:hover:text-red-400 transition-colors duration-200 p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800" title="Logout">
@@ -275,41 +267,42 @@ const MediaManagerPage = () => {
                     </button>
                 </div>
             </aside>
-
-            {/* Main Content Area */}
-            <main className="flex-1 p-8 flex flex-col bg-gray-100 dark:bg-gray-900 rounded-tl-xl shadow-inner overflow-hidden">
-                {/* Header */}
+            {isSidebarOpen && <div onClick={() => setSidebarOpen(false)} className="fixed inset-0 bg-black/40 z-30 lg:hidden"></div>}
+            <main className="flex-1 p-4 sm:p-6 md:p-8 flex flex-col bg-gray-100 dark:bg-gray-900 rounded-tl-xl shadow-inner overflow-hidden">
                 <header className="flex-shrink-0 flex flex-col md:flex-row justify-between items-start md:items-center mb-6 pb-4 border-b border-gray-200 dark:border-gray-700">
-                    <div>
-                        <h1 className="text-4xl font-extrabold text-gray-900 dark:text-gray-100 mb-1 leading-tight">{history[history.length - 1]?.name}</h1>
-                        {currentFolderData && <p className="text-sm text-gray-500 dark:text-gray-400">Owned by <span className="font-medium text-gray-600 dark:text-gray-300">{isOwnerOfCurrentFolder ? 'you' : currentFolderData.user.username}</span></p>}
+                    <div className="flex items-center">
+                        <button onClick={() => setSidebarOpen(true)} className="lg:hidden mr-4 p-2 rounded-md text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-800">
+                            <Menu size={28}/>
+                        </button>
+                        <div>
+                            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-gray-900 dark:text-gray-100 mb-1 leading-tight">{history[history.length - 1]?.name}</h1>
+                            {currentFolderData && <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-400">Owned by <span className="font-medium text-gray-600 dark:text-gray-300">{isOwnerOfCurrentFolder ? 'you' : currentFolderData.user.username}</span></p>}
+                        </div>
                     </div>
                     {viewMode !== 'trash' && canWriteInCurrentView && (
-                        <button onClick={() => setAddModalOpen(true)} className="bg-blue-600 text-white px-6 py-3 rounded-xl shadow-lg hover:bg-blue-700 transition-all duration-300 ease-in-out transform hover:-translate-y-1 hover:scale-105 flex items-center mt-4 md:mt-0 font-semibold text-lg">
-                            <PlusCircle className="mr-3" size={24}/> Add New
+                        <button onClick={() => setAddModalOpen(true)} className="bg-blue-600 text-white px-4 py-2 sm:px-6 sm:py-3 rounded-xl shadow-lg hover:bg-blue-700 transition-all duration-300 ease-in-out transform hover:-translate-y-1 hover:scale-105 flex items-center mt-4 md:mt-0 font-semibold text-base sm:text-lg self-end md:self-center">
+                            <PlusCircle className="mr-2 sm:mr-3" size={24}/> Add New
                         </button>
                     )}
                 </header>
-
-                {/* Search and Filter */}
                 <div className="flex-shrink-0 flex flex-col md:flex-row gap-4 mb-6">
                     <div className="relative flex-grow">
                         <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 dark:text-gray-500" size={20}/>
                         <input
                             type="text"
-                            placeholder="Search files and folders..."
+                            placeholder="Search in this folder..."
                             value={searchQuery}
                             onChange={e => setSearchQuery(e.target.value)}
                             className="w-full pl-12 pr-4 py-3 border border-gray-300 dark:border-gray-600 rounded-xl bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm transition-all duration-200"
                         />
                     </div>
                     {viewMode === 'drive' && (
-                        <div className="flex items-center gap-2 bg-gray-200 dark:bg-gray-800 p-2 rounded-xl overflow-x-auto shadow-inner">
+                        <div className="flex items-center gap-1 sm:gap-2 bg-gray-200 dark:bg-gray-800 p-1 sm:p-2 rounded-xl overflow-x-auto shadow-inner">
                             {['all', 'image', 'video', 'audio', 'document', 'favorites'].map(f => (
                                 <button
                                     key={f}
                                     onClick={() => setActiveFilter(f)}
-                                    className={`px-4 py-2 rounded-lg text-sm font-semibold whitespace-nowrap transition-all duration-200
+                                    className={`px-3 py-2 sm:px-4 rounded-lg text-xs sm:text-sm font-semibold whitespace-nowrap transition-all duration-200
                                         ${activeFilter === f ? 'bg-white dark:bg-gray-700 text-blue-700 dark:text-blue-300 shadow-md' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'}
                                     `}
                                 >
@@ -319,10 +312,8 @@ const MediaManagerPage = () => {
                         </div>
                     )}
                 </div>
-
-                {/* Breadcrumbs */}
                 {viewMode === 'drive' && (
-                    <nav className="flex-shrink-0 flex items-center space-x-2 bg-white dark:bg-gray-800 p-3 rounded-xl mb-6 text-sm shadow-sm border border-gray-200 dark:border-gray-700">
+                    <nav className="flex-shrink-0 flex items-center flex-wrap gap-y-2 space-x-2 bg-white dark:bg-gray-800 p-3 rounded-xl mb-6 text-sm shadow-sm border border-gray-200 dark:border-gray-700">
                         <Home onClick={() => handleBreadcrumbClick('root', 0)} className="cursor-pointer text-gray-500 hover:text-blue-600 dark:hover:text-blue-400 transition-colors duration-200" size={20}/>
                         {history.map((f, i) => (
                             <React.Fragment key={f._id}>
@@ -337,55 +328,37 @@ const MediaManagerPage = () => {
                         ))}
                     </nav>
                 )}
-
-                {/* Content Display Area */}
-                <div className="flex-grow overflow-y-auto p-4 bg-white dark:bg-gray-800 rounded-xl shadow-inner border border-gray-200 dark:border-gray-700">
+                <div className="flex-grow overflow-y-auto p-2 sm:p-4 bg-white dark:bg-gray-800 rounded-xl shadow-inner border border-gray-200 dark:border-gray-700">
                     {loading ? (
                         <div className="flex flex-col items-center justify-center h-full text-blue-500">
                             <Loader2 className="animate-spin text-blue-500 mb-4" size={64}/>
                             <p className="text-xl font-medium">Loading content...</p>
                         </div>
                     ) : error ? (
-                        <div className="flex flex-col items-center justify-center h-full text-red-500">
+                        <div className="flex flex-col items-center justify-center h-full text-red-500 text-center p-4">
                             <ShieldAlert size={80} className="mb-4"/>
                             <p className="text-2xl font-semibold">{error}</p>
                             <p className="text-md text-gray-500 mt-2">Please try again or check permissions.</p>
                         </div>
                     ) : (content.folders.length === 0 && content.media.length === 0) ? (
-                        <div className="flex flex-col items-center justify-center h-full text-gray-500">
+                        <div className="flex flex-col items-center justify-center h-full text-gray-500 text-center p-4">
                             <Folder size={80} className="mb-4"/>
                             <p className="text-2xl font-semibold">This folder is empty</p>
                             {viewMode === 'drive' && canWriteInCurrentView && <p className="mt-2 text-md">Click "Add New" to upload files or create folders.</p>}
                         </div>
                     ) : (
-                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6 p-2">
-                            {/* Folders */}
+                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-4 md:gap-6">
                             {content.folders.map(f => (
-                                <div
-                                    key={f._id}
-                                    onDoubleClick={() => handleFolderClick(f)}
-                                    onContextMenu={(e) => handleContextMenu(e, f)}
-                                    className="bg-gray-50 dark:bg-gray-900 p-5 border border-gray-200 dark:border-gray-700 rounded-xl text-center cursor-pointer hover:shadow-lg transform hover:-translate-y-1 transition-all duration-200 relative group"
-                                >
+                                <div key={f._id} onDoubleClick={() => handleFolderClick(f)} onContextMenu={(e) => handleContextMenu(e, f)} className="bg-gray-50 dark:bg-gray-900 p-4 border border-gray-200 dark:border-gray-700 rounded-xl text-center cursor-pointer hover:shadow-lg transform hover:-translate-y-1 transition-all duration-200 relative group">
                                     {f.hasPassword ? <Lock size={48} className="mx-auto text-yellow-500 group-hover:text-yellow-600 transition-colors duration-200" title="Password protected"/> : <Folder size={48} className="mx-auto text-blue-500 group-hover:text-blue-600 transition-colors duration-200"/>}
                                     <p className="mt-3 font-semibold text-gray-800 dark:text-gray-200 truncate">{f.name}</p>
-                                    <button
-                                        onClick={(e) => handleContextMenu(e, f)}
-                                        className="absolute top-2 right-2 p-2 rounded-full text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700 opacity-0 group-hover:opacity-100 transition-opacity duration-200 focus:opacity-100"
-                                        title="More options"
-                                    >
+                                    <button onClick={(e) => handleContextMenu(e, f)} className="absolute top-2 right-2 p-2 rounded-full text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700 opacity-0 group-hover:opacity-100 transition-opacity duration-200 focus:opacity-100" title="More options">
                                         <MoreVertical size={20}/>
                                     </button>
                                 </div>
                             ))}
-                            {/* Media Files */}
                             {content.media.map(m => (
-                                <div
-                                    key={m._id}
-                                    onDoubleClick={() => handlePreviewClick(m)}
-                                    onContextMenu={(e) => handleContextMenu(e, m)}
-                                    className="bg-gray-50 dark:bg-gray-900 p-5 border border-gray-200 dark:border-gray-700 rounded-xl text-center hover:shadow-lg transform hover:-translate-y-1 transition-all duration-200 relative group cursor-pointer"
-                                >
+                                <div key={m._id} onDoubleClick={() => handlePreviewClick(m)} onContextMenu={(e) => handleContextMenu(e, m)} className="bg-gray-50 dark:bg-gray-900 p-4 border border-gray-200 dark:border-gray-700 rounded-xl text-center hover:shadow-lg transform hover:-translate-y-1 transition-all duration-200 relative group cursor-pointer">
                                     {m.isFavorite && <Star size={20} className="absolute top-3 left-3 text-yellow-400 fill-current z-10"/>}
                                     <div className="h-28 w-full bg-gray-100 dark:bg-gray-700 rounded-lg overflow-hidden flex items-center justify-center mb-3 shadow-inner">
                                         {(m.type === 'image' || m.mimetype.startsWith('image/')) ? (
@@ -396,11 +369,7 @@ const MediaManagerPage = () => {
                                     </div>
                                     <p className="text-sm font-semibold text-gray-800 dark:text-gray-200 truncate">{m.filename}</p>
                                     <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{m.mimetype.split('/')[0].toUpperCase()}</p>
-                                    <button
-                                        onClick={(e) => handleContextMenu(e, m)}
-                                        className="absolute top-2 right-2 p-2 rounded-full text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700 opacity-0 group-hover:opacity-100 transition-opacity duration-200 focus:opacity-100"
-                                        title="More options"
-                                    >
+                                    <button onClick={(e) => handleContextMenu(e, m)} className="absolute top-2 right-2 p-2 rounded-full text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-700 opacity-0 group-hover:opacity-100 transition-opacity duration-200 focus:opacity-100" title="More options">
                                         <MoreVertical size={20}/>
                                     </button>
                                 </div>
@@ -408,7 +377,6 @@ const MediaManagerPage = () => {
                         </div>
                     )}
                 </div>
-
                 {renderContextMenu()}
                 <PreviewModal isOpen={isPreviewModalOpen} onClose={() => setPreviewModalOpen(false)} item={itemToPreview} />
                 <AddItemModal isOpen={isAddModalOpen} onClose={() => setAddModalOpen(false)} onCreateFolder={handleCreateFolder} onUploadMedia={handleUploadMedia}/>
