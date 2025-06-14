@@ -29,50 +29,62 @@ const VerifyEmailPage = () => {
             }
         };
 
-        verifyEmail();
+        const timer = setTimeout(() => {
+            verifyEmail();
+        }, 1000);
+
+        return () => clearTimeout(timer);
+        
     }, [searchParams]);
 
     const renderContent = () => {
         switch (status) {
             case 'success':
                 return (
-                    <>
-                        <CheckCircle className="mx-auto h-16 w-16 text-green-400" />
-                        <h2 className="text-3xl font-bold text-slate-100">Email Verified!</h2>
-                        <p className="text-green-300 bg-green-900/50 p-3 rounded-lg">{message}</p>
+                    <div className="animate-in fade-in-0 zoom-in-95">
+                        <div className="inline-block p-4 bg-green-500/10 border border-green-500/20 rounded-full">
+                            <CheckCircle className="h-12 w-12 text-green-400" />
+                        </div>
+                        <h2 className="text-3xl font-bold text-white mt-5">Email Verified!</h2>
+                        <p className="text-green-300 bg-green-900/50 p-3 rounded-lg mt-4">{message}</p>
                         <Link 
                             to="/login" 
-                            className="w-full mt-4 block text-center px-4 py-3 font-bold text-white bg-gradient-to-r from-brand-secondary to-brand-primary rounded-lg hover:opacity-90 transition-opacity duration-300"
+                            className="w-full mt-6 block text-center px-4 py-3 font-bold text-black bg-white rounded-lg hover:bg-neutral-200 active:scale-95 transition-all duration-300"
                         >
                             Proceed to Login
                         </Link>
-                    </>
+                    </div>
                 );
             case 'error':
                 return (
-                    <>
-                        <XCircle className="mx-auto h-16 w-16 text-red-400" />
-                        <h2 className="text-3xl font-bold text-slate-100">Verification Failed</h2>
-                        <p className="text-red-400 bg-red-900/50 p-3 rounded-lg">{message}</p>
-                        <p className="text-sm text-slate-500 mt-4">
-                           Please <Link to="/register" className="font-semibold text-brand-primary hover:underline">register again</Link> to receive a new link.
+                    <div className="animate-in fade-in-0 zoom-in-95">
+                        <div className="inline-block p-4 bg-red-500/10 border border-red-500/20 rounded-full">
+                           <XCircle className="h-12 w-12 text-red-400" />
+                        </div>
+                        <h2 className="text-3xl font-bold text-white mt-5">Verification Failed</h2>
+                        <p className="text-red-300 bg-red-900/50 p-3 rounded-lg mt-4">{message}</p>
+                        <p className="text-sm text-neutral-500 mt-6">
+                           Please <Link to="/register" className="font-semibold text-white hover:underline">register again</Link> to receive a new link.
                         </p>
-                    </>
+                    </div>
                 );
             default:
                 return (
                     <>
-                        <Loader2 className="mx-auto h-16 w-16 text-brand-primary animate-spin" />
-                        <h2 className="text-3xl font-bold text-slate-100">Verifying...</h2>
-                        <p className="text-slate-400">{message}</p>
+                        <Loader2 className="mx-auto h-12 w-12 text-white animate-spin" />
+                        <h2 className="text-3xl font-bold text-white mt-5">Verifying...</h2>
+                        <p className="text-neutral-400">{message}</p>
                     </>
                 );
         }
     };
 
     return (
-        <div className="flex justify-center items-center min-h-screen bg-slate-950 p-4">
-            <div className="w-full max-w-md p-8 space-y-6 bg-slate-900 rounded-2xl shadow-2xl shadow-black/25 text-center">
+        <div className="flex justify-center items-center min-h-screen bg-neutral-950 p-4 font-sans">
+            <div 
+                className="w-full max-w-md p-8 sm:p-10 space-y-6 bg-neutral-900/50 backdrop-blur-sm 
+                           rounded-2xl border border-neutral-800 shadow-2xl shadow-black/60 text-center"
+            >
                 {renderContent()}
             </div>
         </div>

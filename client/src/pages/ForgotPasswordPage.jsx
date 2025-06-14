@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import axios from 'axios';
-import { Loader2, MailCheck } from 'lucide-react';
+import { Loader2, MailCheck, KeyRound } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 const API_URL = 'http://localhost:5000/api/auth';
@@ -31,14 +31,21 @@ const ForgotPasswordPage = () => {
     
     if (isSubmitted) {
         return (
-            <div className="flex justify-center items-center min-h-screen bg-gray-100">
-                <div className="w-full max-w-md p-8 space-y-6 bg-white rounded-lg shadow-xl text-center">
-                    <MailCheck className="mx-auto h-16 w-16 text-green-500" />
-                    <h2 className="text-3xl font-bold text-gray-800">Check Your Inbox!</h2>
-                    <p className="text-gray-600">
-                        {message} Please follow the instructions in the email to reset your password. The link will expire in one hour.
+            <div className="flex justify-center items-center min-h-screen bg-neutral-950 p-4 font-sans">
+                <div 
+                    className="w-full max-w-md p-8 space-y-6 bg-neutral-900/50 backdrop-blur-sm 
+                               rounded-2xl border border-neutral-800 shadow-2xl shadow-black/60 text-center
+                               animate-in fade-in-0 zoom-in-95"
+                >
+                    <div className="inline-block p-4 bg-green-500/10 border border-green-500/20 rounded-full">
+                        <MailCheck className="h-12 w-12 text-green-400" />
+                    </div>
+                    <h2 className="text-3xl font-bold text-white mt-5">Check Your Inbox!</h2>
+                    <p className="text-neutral-400 mt-2">{message}</p>
+                    <p className="text-sm text-neutral-500 mt-4">
+                        The link will expire in one hour.
                     </p>
-                    <Link to="/login" className="text-blue-500 hover:underline">
+                    <Link to="/login" className="font-semibold text-white hover:underline mt-6 inline-block">
                         Back to Login
                     </Link>
                 </div>
@@ -47,24 +54,61 @@ const ForgotPasswordPage = () => {
     }
     
     return (
-        <div className="flex justify-center items-center min-h-screen bg-gray-100">
-            <div className="w-full max-w-md p-8 space-y-6 bg-white rounded-lg shadow-xl">
-                <h2 className="text-3xl font-bold text-center text-gray-800">Forgot Password</h2>
-                <p className="text-center text-sm text-gray-500">
-                    Enter your email and we'll send you a link to reset your password.
-                </p>
-                {error && <p className="text-red-500 text-center bg-red-100 p-3 rounded-md">{error}</p>}
+        <div className="flex justify-center items-center min-h-screen bg-neutral-950 p-4 font-sans">
+            <div 
+                className="w-full max-w-md p-8 sm:p-10 space-y-8 bg-neutral-900/50 backdrop-blur-sm 
+                           rounded-2xl border border-neutral-800 shadow-2xl shadow-black/60"
+            >
+                 <div className="text-center">
+                    <div className="inline-block p-4 bg-neutral-800 border border-neutral-700 rounded-full mb-5 shadow-inner">
+                        <KeyRound className="text-white" size={32} />
+                    </div>
+                    <h1 className="text-3xl sm:text-4xl font-bold text-white tracking-tight">
+                        Forgot Your Password?
+                    </h1>
+                    <p className="text-neutral-400 mt-2">No worries, we'll send you reset instructions.</p>
+                </div>
+
+                {error && (
+                    <div 
+                        className="text-red-300 bg-red-500/10 border border-red-500/20 p-3 
+                                   rounded-lg text-center text-sm transition-all animate-in fade-in-50"
+                    >
+                        {error}
+                    </div>
+                )}
                 
                 <form onSubmit={onSubmit} className="space-y-6">
-                    <div>
-                        <label className="text-sm font-bold text-gray-600 block">Email</label>
-                        <input type="email" name="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="Enter your email" required className="w-full mt-1 px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                    <div className="space-y-2">
+                        <label className="text-sm font-medium text-neutral-400 block">Email Address</label>
+                        <input 
+                            type="email" 
+                            name="email" 
+                            value={email} 
+                            onChange={e => setEmail(e.target.value)} 
+                            placeholder="Enter your registered email" 
+                            required 
+                            className="w-full px-4 py-3 bg-neutral-800 border border-neutral-700 rounded-lg text-white 
+                                       placeholder-neutral-500 focus:outline-none focus:ring-2 focus:ring-offset-2 
+                                       focus:ring-offset-neutral-900 focus:ring-white transition-all duration-300" 
+                        />
                     </div>
-                    <button type="submit" disabled={loading} className="w-full px-4 py-2 font-bold text-white bg-blue-500 rounded-md hover:bg-blue-600 flex justify-center items-center transition duration-300 disabled:bg-blue-300">
-                        {loading ? <Loader2 className="animate-spin" /> : 'Send Reset Link'}
+                    <button 
+                        type="submit" 
+                        disabled={loading} 
+                        className="w-full px-4 py-3 font-bold text-black bg-white rounded-lg 
+                                   hover:bg-neutral-200 active:scale-95 flex justify-center items-center 
+                                   transition-all duration-300 disabled:bg-neutral-500 
+                                   disabled:cursor-not-allowed disabled:text-neutral-300"
+                    >
+                        {loading ? <Loader2 className="animate-spin text-black" /> : 'Send Reset Link'}
                     </button>
                 </form>
-                <p className="text-center text-sm">Remember your password? <Link to="/login" className="text-blue-500 hover:underline">Login</Link></p>
+                <p className="text-center text-sm text-neutral-500">
+                    Remember it now? <Link to="/login" className="font-semibold text-white hover:underline">
+                        Back to Sign In
+                    </Link>
+                </p>
             </div>
         </div>
     );
