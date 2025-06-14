@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import axios from 'axios';
-import { Loader2 } from 'lucide-react';
+import { Loader2, MailCheck } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 const API_URL = 'http://localhost:5000/api/auth';
@@ -10,6 +10,7 @@ const ForgotPasswordPage = () => {
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState(null);
     const [error, setError] = useState(null);
+    const [isSubmitted, setIsSubmitted] = useState(false);
 
     const onSubmit = async e => {
         e.preventDefault();
@@ -19,19 +20,41 @@ const ForgotPasswordPage = () => {
         try {
             const res = await axios.post(`${API_URL}/forgot-password`, { email });
             setMessage(res.data.msg);
+            setIsSubmitted(true);
         } catch (err) {
             setError(err.response?.data?.msg || 'Something went wrong.');
+            setIsSubmitted(false);
         } finally {
             setLoading(false);
         }
     };
-
+    
+    if (isSubmitted) {
+        return (
+            <div className="flex justify-center items-center min-h-screen bg-gray-100">
+                <div className="w-full max-w-md p-8 space-y-6 bg-white rounded-lg shadow-xl text-center">
+                    <MailCheck className="mx-auto h-16 w-16 text-green-500" />
+                    <h2 className="text-3xl font-bold text-gray-800">Check Your Inbox!</h2>
+                    <p className="text-gray-600">
+                        {message} Please follow the instructions in the email to reset your password. The link will expire in one hour.
+                    </p>
+                    <Link to="/login" className="text-blue-500 hover:underline">
+                        Back to Login
+                    </Link>
+                </div>
+            </div>
+        );
+    }
+    
     return (
         <div className="flex justify-center items-center min-h-screen bg-gray-100">
             <div className="w-full max-w-md p-8 space-y-6 bg-white rounded-lg shadow-xl">
                 <h2 className="text-3xl font-bold text-center text-gray-800">Forgot Password</h2>
+                <p className="text-center text-sm text-gray-500">
+                    Enter your email and we'll send you a link to reset your password.
+                </p>
                 {error && <p className="text-red-500 text-center bg-red-100 p-3 rounded-md">{error}</p>}
-                {message && <p className="text-green-500 text-center bg-green-100 p-3 rounded-md">{message}</p>}
+                
                 <form onSubmit={onSubmit} className="space-y-6">
                     <div>
                         <label className="text-sm font-bold text-gray-600 block">Email</label>
@@ -46,4 +69,5 @@ const ForgotPasswordPage = () => {
         </div>
     );
 };
+
 export default ForgotPasswordPage;
