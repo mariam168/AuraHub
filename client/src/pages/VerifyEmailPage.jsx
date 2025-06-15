@@ -3,7 +3,7 @@ import { useSearchParams, Link } from 'react-router-dom';
 import axios from 'axios';
 import { Loader2, CheckCircle, XCircle } from 'lucide-react';
 
-const API_URL = 'http://localhost:5000/api/auth';
+const API_URL = 'https://unleashed-overjoyed-pancreas.glitch.me/api/auth';
 
 const VerifyEmailPage = () => {
     const [searchParams] = useSearchParams();

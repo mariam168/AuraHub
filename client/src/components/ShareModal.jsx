@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, UserPlus, Trash2, Shield, Eye, Loader2, Users } from 'lucide-react';
 import axios from 'axios';
 
-const API_URL = 'http://localhost:5000/api/content';
+const API_URL = 'https://unleashed-overjoyed-pancreas.glitch.me/api/content';
 
 const ShareModal = ({ isOpen, onClose, folder, onCollaboratorsUpdate }) => {
     const [email, setEmail] = useState('');

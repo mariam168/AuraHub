@@ -3,7 +3,7 @@ import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
 import { Loader2, CheckCircle, KeyRound, XCircle } from 'lucide-react';
 
-const API_URL = 'http://localhost:5000/api/auth';
+const API_URL = 'https://unleashed-overjoyed-pancreas.glitch.me/api/auth';
 
 const ResetPasswordPage = () => {
     const [searchParams] = useSearchParams();

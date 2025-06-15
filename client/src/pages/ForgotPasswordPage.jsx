@@ -3,7 +3,7 @@ import axios from 'axios';
 import { Loader2, MailCheck, KeyRound } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
-const API_URL = 'http://localhost:5000/api/auth';
+const API_URL = 'https://unleashed-overjoyed-pancreas.glitch.me/api/auth';
 
 const ForgotPasswordPage = () => {
     const [email, setEmail] = useState('');

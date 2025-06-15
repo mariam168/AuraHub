@@ -14,8 +14,8 @@ import PasswordPromptModal from '../components/PasswordPromptModal';
 import ShareModal from '../components/ShareModal';
 import PreviewModal from '../components/PreviewModal';
 
-const API_URL = 'http://localhost:5000/api/content';
-const STATIC_URL = 'http://localhost:5000';
+const API_URL = 'https://unleashed-overjoyed-pancreas.glitch.me/api/content';
+const STATIC_URL = 'https://unleashed-overjoyed-pancreas.glitch.me';
 
 const MediaManagerPage = () => {
     const { user, logout } = useAuth();

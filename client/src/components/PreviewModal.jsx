@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Download, FileWarning } from 'lucide-react';
 
-const STATIC_URL = 'http://localhost:5000';
+const STATIC_URL = 'https://unleashed-overjoyed-pancreas.glitch.me';
 
 const PreviewModal = ({ isOpen, onClose, item }) => {
     const [isAnimatingOut, setIsAnimatingOut] = useState(false);
