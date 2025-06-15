@@ -32,7 +32,7 @@ exports.register = async (req, res) => {
         console.log('--- Step 2: Token being sent in email ---');
         console.log(user.verificationToken);
         
-        const verificationUrl = `http://localhost:5173/verify-email?token=${user.verificationToken}`;
+        const verificationUrl = `https://zesty-figolla-82cf94.netlify.app/verify-email?token=${user.verificationToken}`;
         
         await transporter.sendMail({
             to: user.email,
@@ -121,7 +121,7 @@ exports.forgotPassword = async (req, res) => {
         user.resetPasswordExpires = Date.now() + 3600000;
         await user.save();
 
-        const resetUrl = `http://localhost:5173/reset-password?token=${resetToken}`;
+        const resetUrl = `https://zesty-figolla-82cf94.netlify.app/reset-password?token=${resetToken}`;
         
         await transporter.sendMail({
             to: user.email,
